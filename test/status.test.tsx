@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../src/app.js';
+import { countStatuses } from '../src/digest/counts.js';
 
 const config = { adapter: 'shim', installed: '2026-10-29T14:06:00+01:00', beatEverySeconds: 60, runsDir: 'runs' };
 
@@ -11,6 +12,18 @@ describe('status board', () => {
     expect(res.status).toBe(200);
     expect(html).toContain('TEST-MARKER');
     expect(html).toContain('2026-10-28');
+  });
+
+  it('links each night to its digest with counts', async () => {
+    const html = await (await createApp(config).request('/')).text();
+    expect(html).toContain('href="/digest/2026-10-28"');
+    expect(html).toContain('href="/digest/2026-10-27"');
+    expect(html).toMatch(/\d+ ok · \d+ retry · \d+ fail/);
+  });
+
+  it('counts lines per status, skipping bad lines', () => {
+    const l = (status: string) => JSON.stringify({ at: 't', job: 'j', status, owner: null });
+    expect(countStatuses([l('ok'), l('ok'), l('retry'), 'junk', '', l('fail')].join('\n'))).toEqual({ ok: 2, retry: 1, fail: 1 });
   });
 
   it('health answers with the lane id', async () => {
